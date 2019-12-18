@@ -1,26 +1,16 @@
-from __future__ import unicode_literals
-
 import pkg_resources
-import six
+from urllib import parse as urlparse
+
 from django import forms
 from django.contrib.admin.filters import FieldListFilter
 from django.core import checks, exceptions
 from django.db.models.fields import BLANK_CHOICE_DASH, CharField
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import lazy
 from django.utils.html import escape as escape_html
 
 from django_countries import countries, filters, ioc_data, widgets
 from django_countries.conf import settings
-
-try:
-    from urllib import parse as urlparse
-except ImportError:
-    import urlparse  # Python 2
-try:
-    basestring
-except NameError:
-    basestring = str  # Python 3
 
 EXTENSIONS = dict(
     (ep.name, ep.load())
@@ -33,7 +23,7 @@ def country_to_text(value):
         value = value.code
     if value is None:
         return None
-    return force_text(value)
+    return force_str(value)
 
 
 class TemporaryEscape(object):
@@ -55,7 +45,6 @@ class TemporaryEscape(object):
         self.country._escape = self.original_escape
 
 
-@six.python_2_unicode_compatible
 class Country(object):
     def __init__(self, code, flag_url=None, str_attr="code", custom_countries=None):
         self.flag_url = flag_url
@@ -70,16 +59,16 @@ class Country(object):
         self.code = self.countries.alpha2(code) or code
 
     def __str__(self):
-        return force_text(getattr(self, self._str_attr) or "")
+        return force_str(getattr(self, self._str_attr) or "")
 
     def __eq__(self, other):
-        return force_text(self.code or "") == force_text(other or "")
+        return force_str(self.code or "") == force_str(other or "")
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash(force_text(self))
+        return hash(force_str(self))
 
     def __repr__(self):
         args = ["code={country.code!r}"]
@@ -96,7 +85,7 @@ class Country(object):
     __nonzero__ = __bool__  # Python 2 compatibility.
 
     def __len__(self):
-        return len(force_text(self))
+        return len(force_str(self))
 
     @property
     def countries(self):
@@ -248,7 +237,7 @@ class LazyChoicesMixin(widgets.LazyChoicesMixin):
         """
         Also update the widget's choices.
         """
-        super(LazyChoicesMixin, self)._set_choices(value)
+        super()._set_choices(value)
         self.widget.choices = value
 
 
@@ -290,7 +279,7 @@ class CountryField(CharField):
         super(CharField, self).__init__(*args, **kwargs)
 
     def check(self, **kwargs):
-        errors = super(CountryField, self).check(**kwargs)
+        errors = super().check(**kwargs)
         errors.extend(self._check_multiple())
         return errors
 
@@ -316,7 +305,7 @@ class CountryField(CharField):
         return "CharField"
 
     def contribute_to_class(self, cls, name):
-        super(CountryField, self).contribute_to_class(cls, name)
+        super().contribute_to_class(cls, name)
         setattr(cls, self.name, self.descriptor_class(self))
 
     def pre_save(self, *args, **kwargs):
@@ -339,8 +328,8 @@ class CountryField(CharField):
             return None
         if not self.multiple:
             return country_to_text(value)
-        if isinstance(value, (basestring, Country)):
-            if isinstance(value, basestring) and "," in value:
+        if isinstance(value, (str, Country)):
+            if isinstance(value, str) and "," in value:
                 value = value.split(",")
             else:
                 value = [value]
@@ -359,7 +348,7 @@ class CountryField(CharField):
         Not including the ``blank_label`` property, as this isn't database
         related.
         """
-        name, path, args, kwargs = super(CountryField, self).deconstruct()
+        name, path, args, kwargs = super().deconstruct()
         kwargs.pop("choices")
         if self.multiple:  # multiple determines the length of the field
             kwargs["multiple"] = self.multiple
@@ -377,7 +366,7 @@ class CountryField(CharField):
                 blank_choice = [("", self.blank_label)]
         if self.multiple:
             include_blank = False
-        return super(CountryField, self).get_choices(
+        return super().get_choices(
             include_blank=include_blank, blank_choice=blank_choice, *args, **kwargs
         )
 
@@ -389,20 +378,20 @@ class CountryField(CharField):
             LazyTypedMultipleChoiceField if self.multiple else LazyTypedChoiceField,
         )
         if "coerce" not in kwargs:
-            kwargs["coerce"] = super(CountryField, self).to_python
-        field = super(CharField, self).formfield(**kwargs)
+            kwargs["coerce"] = super().to_python
+        field = super().formfield(**kwargs)
         return field
 
     def to_python(self, value):
         if not self.multiple:
-            return super(CountryField, self).to_python(value)
+            return super().to_python(value)
         if not value:
             return value
-        if isinstance(value, basestring):
+        if isinstance(value, str):
             value = value.split(",")
         output = []
         for item in value:
-            output.append(super(CountryField, self).to_python(item))
+            output.append(super().to_python(item))
         return output
 
     def validate(self, value, model_instance):
@@ -410,7 +399,7 @@ class CountryField(CharField):
         Use custom validation for when using a multiple countries field.
         """
         if not self.multiple:
-            return super(CountryField, self).validate(value, model_instance)
+            return super().validate(value, model_instance)
 
         if not self.editable:
             # Skip validation for non-editable fields.
